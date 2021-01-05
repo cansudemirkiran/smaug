@@ -10,6 +10,7 @@
 // a particular backend.
 #define REFERENCE 0
 #define SMVBACKEND 1
+#define PEABACKEND 2
 
 /**
  * The smaug namespace is the parent namespace of all C++ code in SMAUG.
@@ -24,6 +25,8 @@ enum BackendName {
     Reference = REFERENCE,
     /** SMV backend. */
     Smv = SMVBACKEND,
+    /** PEA backend. */
+    Pea = PEABACKEND,
     /** Invalid backend. */
     UnknownBackend,
 };
@@ -240,6 +243,122 @@ class SmvBackend {
     DECL_CREATE_OP(MergeOp);
 
 #undef DECL_SMV_OP
+#undef DECL_CREATE_OP
+
+};
+
+/**
+ * The pea namespace contains all code specific to the pea backend.
+ */
+namespace pea {
+extern int kSpadSize;
+extern const unsigned kConvolutionHw;
+extern const unsigned kInnerProductHw;
+extern const unsigned kEltwiseOpHw;
+extern const unsigned kBatchNormHw;
+extern const unsigned kPoolingHw;
+extern const unsigned kSystolicArrayHw;
+// Note that these naked pointers are never to be used except when invoking the
+// kernels themselves.
+extern float* spad0;
+extern float* spad1;
+extern float* spad2;
+}  // namespace pea
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+class PeaConvolutionOp;
+class PeaInnerProductOp;
+class PeaMaxPoolingOp;
+class PeaAvgPoolingOp;
+class PeaBatchNormOp;
+class PeaReluOp;
+class PeaEluOp;
+class PeaSeluOp;
+class PeaTanhOp;
+class PeaHardTanhOp;
+class PeaSigmoidOp;
+class PeaSoftmaxOp;
+class PeaEltwiseAddOp;
+class PeaEltwiseMulOp;
+class PeaLessOp;
+class PeaLessEqualOp;
+class PeaGreaterOp;
+class PeaGreaterEqualOp;
+#endif
+
+/**
+ * SmvBackend implements a set of models of optimized DL kernels that were
+ * taped out on a machine learning SoC by the Harvard Architecture, Circuits,
+ * and Compilers. All operators implemented in this backend are vectorized
+ * using eight fp16 values. See the individual operators for more details.
+ */
+class PeaBackend {
+
+// The difference between DECL_CREATE_OP and DECL_CREATE_SMV_OP is the latter is
+// used for a custom operator implementation for the SMV backend, which is not
+// limited to explicit template specializations.
+#define DECL_CREATE_OP(OpType)                                                 \
+    static smaug::OpType<PeaBackend>* create##OpType(                          \
+            const std::string& name, Workspace* workspace)
+#define DECL_CREATE_PEA_OP(OpType)                                             \
+    static smaug::Pea##OpType* create##OpType(                                 \
+            const std::string& name, Workspace* workspace)
+
+   public:
+    static const int Alignment = 8;
+    static const bool PrecomputeBNVariance = true;
+    static const bool TransposeFCWeights = true;
+    static const std::string Name;
+    static const DataLayout DefaultInputDataLayout = DataLayout::NCHW;
+
+    static int SpadSize() { return smv::kSpadSize; }
+    static void initGlobals() {
+        // kSpadSize is in terms of float16 data.
+        pea::kSpadSize = 32 * 1024;
+        // In SMV, all tensors store float16 data, but due to the modelling
+        // restriction of Aladdin, we actually store float32 data in the
+        // scratchpads. This why the allocated memory size here is double
+        // kSpadSize.
+        pea::spad0 = (float*)malloc_aligned(pea::kSpadSize * 2);
+        pea::spad1 = (float*)malloc_aligned(pea::kSpadSize * 2);
+        pea::spad2 = (float*)malloc_aligned(pea::kSpadSize * 2);
+    }
+    static void freeGlobals() {
+        free(pea::spad0);
+        free(pea::spad1);
+        free(pea::spad2);
+    }
+
+    DECL_CREATE_PEA_OP(ConvolutionOp);
+    DECL_CREATE_PEA_OP(InnerProductOp);
+    DECL_CREATE_PEA_OP(MaxPoolingOp);
+    DECL_CREATE_PEA_OP(AvgPoolingOp);
+    DECL_CREATE_PEA_OP(BatchNormOp);
+    DECL_CREATE_PEA_OP(ReluOp);
+    DECL_CREATE_PEA_OP(EluOp);
+    DECL_CREATE_PEA_OP(SeluOp);
+    DECL_CREATE_PEA_OP(TanhOp);
+    DECL_CREATE_PEA_OP(HardTanhOp);
+    DECL_CREATE_PEA_OP(SigmoidOp);
+    DECL_CREATE_PEA_OP(SoftmaxOp);
+    DECL_CREATE_PEA_OP(EltwiseAddOp);
+    DECL_CREATE_PEA_OP(EltwiseMulOp);
+    DECL_CREATE_PEA_OP(LessOp);
+    DECL_CREATE_PEA_OP(LessEqualOp);
+    DECL_CREATE_PEA_OP(GreaterOp);
+    DECL_CREATE_PEA_OP(GreaterEqualOp);
+    DECL_CREATE_OP(DataOp);
+    DECL_CREATE_OP(DepthwiseConvolutionOp);
+    DECL_CREATE_OP(ReorderOp);
+    DECL_CREATE_OP(ConcatOp);
+    DECL_CREATE_OP(SplitOp);
+    DECL_CREATE_OP(ReshapeOp);
+    DECL_CREATE_OP(RepeatOp);
+    DECL_CREATE_OP(FlattenOp);
+    DECL_CREATE_OP(SwitchOp);
+    DECL_CREATE_OP(MergeOp);
+
+#undef DECL_CREATE_PEA_OP
 #undef DECL_CREATE_OP
 
 };

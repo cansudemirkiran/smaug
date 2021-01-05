@@ -291,6 +291,18 @@ typedef struct _sampling_param_t {
 
     // SMV: Run this many output tiles for an input tile.
     int smv_conv_output_tiles;
+    // Photonic-electrical Acc: Run this many iterations of the inner tiling loop.
+    // See smv/arch/convolution.c for details.
+    int pea_conv_inner_iters;
+
+    // SMV: Run this many L2 tiles.
+    int pea_conv_l2_tiles;
+
+    // SMV: Run this many input tiles of an L2 tile.
+    int pea_conv_input_tiles;
+
+    // SMV: Run this many output tiles for an input tile.
+    int pea_conv_output_tiles;
 } sampling_param_t;
 
 // Possible values of ARCHITECTURE.
@@ -305,6 +317,7 @@ typedef struct _sampling_param_t {
 #define EIGEN 3
 #define MKLDNN 4
 #define SMV 5
+#define PEA 6
 
 // Possible values of SIGMOID_TABLE_IMPL
 #define EXP_UNIT 0

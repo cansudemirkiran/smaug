@@ -33,6 +33,19 @@
 #include "smaug/operators/smv/smv_eltwise_mul_op.h"
 #include "smaug/operators/smv/smv_less_op.h"
 #include "smaug/operators/smv/smv_greater_op.h"
+#include "smaug/operators/pea/p_convolution_op.h"
+#include "smaug/operators/pea/p_inner_product_op.h"
+#include "smaug/operators/pea/p_pooling_op.h"
+#include "smaug/operators/pea/p_batch_norm_op.h"
+#include "smaug/operators/pea/p_relu_op.h"
+#include "smaug/operators/pea/p_elu_op.h"
+#include "smaug/operators/pea/p_tanh_op.h"
+#include "smaug/operators/pea/p_sigmoid_op.h"
+#include "smaug/operators/pea/p_softmax_op.h"
+#include "smaug/operators/pea/p_eltwise_add_op.h"
+#include "smaug/operators/pea/p_eltwise_mul_op.h"
+#include "smaug/operators/pea/p_less_op.h"
+#include "smaug/operators/pea/p_greater_op.h"
 
 namespace smaug {
 
@@ -47,9 +60,15 @@ namespace smaug {
             const std::string& name, Workspace* workspace) {                   \
         return new Smv##OpType(name, workspace);                               \
     }
+#define DEF_CREATE_PEA_OP(OpType)                                              \
+    Pea##OpType* PeaBackend::create##OpType(                                   \
+            const std::string& name, Workspace* workspace) {                   \
+        return new Pea##OpType(name, workspace);                               \
+    }
 
 const std::string ReferenceBackend::Name = "Reference";
 const std::string SmvBackend::Name = "SMV";
+const std::string PeaBackend::Name = "PEA";
 
 DEF_CREATE_OP(ConvolutionOp, ReferenceBackend)
 DEF_CREATE_OP(DataOp, ReferenceBackend)
@@ -109,6 +128,35 @@ DEF_CREATE_OP(FlattenOp, SmvBackend)
 DEF_CREATE_OP(SwitchOp, SmvBackend)
 DEF_CREATE_OP(MergeOp, SmvBackend)
 
+DEF_CREATE_PEA_OP(ConvolutionOp)
+DEF_CREATE_PEA_OP(InnerProductOp)
+DEF_CREATE_PEA_OP(MaxPoolingOp)
+DEF_CREATE_PEA_OP(AvgPoolingOp)
+DEF_CREATE_PEA_OP(BatchNormOp)
+DEF_CREATE_PEA_OP(ReluOp)
+DEF_CREATE_PEA_OP(EluOp)
+DEF_CREATE_PEA_OP(SeluOp)
+DEF_CREATE_PEA_OP(TanhOp)
+DEF_CREATE_PEA_OP(HardTanhOp)
+DEF_CREATE_PEA_OP(SigmoidOp)
+DEF_CREATE_PEA_OP(SoftmaxOp)
+DEF_CREATE_PEA_OP(EltwiseAddOp)
+DEF_CREATE_PEA_OP(EltwiseMulOp)
+DEF_CREATE_PEA_OP(LessOp)
+DEF_CREATE_PEA_OP(LessEqualOp)
+DEF_CREATE_PEA_OP(GreaterOp)
+DEF_CREATE_PEA_OP(GreaterEqualOp)
+DEF_CREATE_OP(DataOp, PeaBackend)
+DEF_CREATE_OP(DepthwiseConvolutionOp, PeaBackend)
+DEF_CREATE_OP(ReorderOp, PeaBackend)
+DEF_CREATE_OP(ConcatOp, PeaBackend)
+DEF_CREATE_OP(SplitOp, PeaBackend)
+DEF_CREATE_OP(ReshapeOp, PeaBackend)
+DEF_CREATE_OP(RepeatOp, PeaBackend)
+DEF_CREATE_OP(FlattenOp, PeaBackend)
+DEF_CREATE_OP(SwitchOp, PeaBackend)
+DEF_CREATE_OP(MergeOp, PeaBackend)
+
 namespace ref {
 const unsigned kConvolutionHw = 0x0001;
 const unsigned kInnerProductHw = 0x0002;
@@ -139,6 +187,29 @@ float* spad0;
 float* spad1;
 float* spad2;
 }  // namespace smv
+
+namespace pea {
+int kSpadSize;
+// Use the same accelerator id for all hardware blocks. This means we will
+// simulate only ONE datapath instead of multiple, which means that the two
+// blocks can share the scratchpads (without any infrastructure
+// changes). The key is that we still trace the functions at the _hw level,
+// so that Aladdin will exit after simulating each block, and we can return
+// control to the CPU at the right places.  In contrast, if we used two
+// different ids, we would have two different datapaths that could not share
+// data directly.
+const unsigned kConvolutionHw = 0x0003;
+const unsigned kInnerProductHw = 0x0003;
+const unsigned kEltwiseOpHw = 0x0003;
+const unsigned kBatchNormHw = 0x0003;
+const unsigned kPoolingHw = 0x0003;
+// The systolic array is implemented in gem5 instead of Aladdin, so it needs to
+// have a different accelerator id.
+const unsigned kSystolicArrayHw = 0x0004;
+float* spad0;
+float* spad1;
+float* spad2;
+}  // namespace pea
 
 
 }  // namespace smaug

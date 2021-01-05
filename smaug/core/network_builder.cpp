@@ -49,6 +49,19 @@
 #include "smaug/operators/smv/smv_eltwise_mul_op.h"
 #include "smaug/operators/smv/smv_less_op.h"
 #include "smaug/operators/smv/smv_greater_op.h"
+#include "smaug/operators/pea/p_convolution_op.h"
+#include "smaug/operators/pea/p_inner_product_op.h"
+#include "smaug/operators/pea/p_pooling_op.h"
+#include "smaug/operators/pea/p_batch_norm_op.h"
+#include "smaug/operators/pea/p_relu_op.h"
+#include "smaug/operators/pea/p_elu_op.h"
+#include "smaug/operators/pea/p_tanh_op.h"
+#include "smaug/operators/pea/p_sigmoid_op.h"
+#include "smaug/operators/pea/p_softmax_op.h"
+#include "smaug/operators/pea/p_eltwise_add_op.h"
+#include "smaug/operators/pea/p_eltwise_mul_op.h"
+#include "smaug/operators/pea/p_less_op.h"
+#include "smaug/operators/pea/p_greater_op.h"
 #include "smaug/utility/utils.h"
 #include "smaug/utility/debug_stream.h"
 
@@ -402,6 +415,9 @@ Network* smaug::buildNetwork(const std::string& modelTopo,
                 graph, tensorDataArray, sampling, workspace);
     } else if (graph.backend() == SmvBackend::Name) {
         network = createNetworkFromProto<SmvBackend>(
+                graph, tensorDataArray, sampling, workspace);
+    } else if (graph.backend() == PeaBackend::Name) {
+        network = createNetworkFromProto<PeaBackend>(
                 graph, tensorDataArray, sampling, workspace);
     } else {
         assert(false && "Unknown backend!");
